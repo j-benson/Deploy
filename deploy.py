@@ -78,6 +78,23 @@ def _remote_listFiles(path, rpath):
 # === End Traversal Functions ===
 
 # === Structures ===
+class Dir(object):
+    """Not sure whether I'll use this?"""
+    def __init__(self):
+        pass;
+    def __init__(self, path):
+        self.path = path;
+        self.files = [];
+    def __eq__(self, other):
+        if isinstance(other, Dir):
+            return self.name() == other.name();
+        else:
+            return self.name() == str(other);
+    def name(self):
+        return os.path.basename(self.path);
+    def addFile(file):
+        self.files.append(file);
+
 class File(object):
     def __init__(self):
         self.path = "";
@@ -153,9 +170,43 @@ def compareFiles(localList, remoteList, checkDeleted = True):
 
     return (new, modified, unmodified, deleted);
 
+def compareDirs(localList, remoteList, checkDeleted = True):
+    """Compares localList with remoteList gets the tuple containing string
+    names of the directories: (new, existing, deleted)
+        new: Directories that are in localList but not in remoteList.
+        existing: Directories that are in both lists.
+        deleted: Directories that are in the remoteList but not in localList.
+    localList - list of strings of the directory names in the local location.
+    remoteList - list of strings of the directory name in the remote location."""
+    new = [];
+    existing = [];
+    deleted = [];
+
+    for ldir in localList:
+        existsInRemote = False;
+        for rdir in remoteList:
+            if ldir == rdir:
+                existsInRemote = True;
+                existing.append(ldir)
+                break;
+        if not existsInRemote:
+            new.append(ldir);
+
+    # Check for deleted files
+    if checkDeleted:
+        for rdir in remoteList:
+            existsInLocal = False;
+            for ldir in localList:
+                if rdir == ldir:
+                    existsInLocal = True;
+                    break;
+            if not existsInLocal:
+                deleted.append(rdir);
+
+    return (new, existing, deleted);
+
 def main():
     pass
-
 
 if __name__ == "__main__":
     main();

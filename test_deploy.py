@@ -43,6 +43,43 @@ class CompareFileObj(unittest.TestCase):
 		self.assertFalse(self.file1 < self.file1);
 		self.assertFalse(self.file3 < self.file3);
 
+class CompareDirs(unittest.TestCase):
+	def setUp(self):
+		self.dir1 = "vw";
+		self.dir2 = "bmw";
+		self.dir3 = "ford";
+		self.dir4 = "renolt";
+	def test_allEmpty(self):
+		new, ex, delt = deploy.compareDirs([], []);
+		self.assertEqual(len(new), 0);
+		self.assertEqual(len(ex), 0);
+		self.assertEqual(len(delt), 0);
+	def test_allNew(self):
+		local = [self.dir1, self.dir2, self.dir3, self.dir4];
+		remote = [];
+		new, ex, delt = deploy.compareDirs(local, remote);
+		self.assertEqual(len(new), 4);
+		self.assertEqual(len(ex), 0);
+		self.assertEqual(len(delt), 0);
+
+		self.assertTrue("vw" in new);
+		self.assertTrue("bmw" in new);
+		self.assertTrue("ford" in new);
+		self.assertTrue("renolt" in new);
+
+	def test_someNew(self):
+		local = [self.dir1, self.dir2, self.dir3, self.dir4];
+		remote = [self.dir1, self.dir2];
+		new, ex, delt = deploy.compareDirs(local, remote);
+		self.assertEqual(len(new), 2);
+		self.assertEqual(len(ex), 2);
+		self.assertEqual(len(delt), 0);
+
+		self.assertTrue("ford" in new);
+		self.assertTrue("renolt" in new);
+		self.assertTrue("vw" in ex);
+		self.assertTrue("bmw" in ex);
+
 class CompareFiles(unittest.TestCase):
 	def setUp(self):
 		self.file1 = deploy.File("D:\\vw\\polo", 0);
@@ -75,6 +112,20 @@ class CompareFiles(unittest.TestCase):
 		self.assertTrue("golf" in new);
 		self.assertTrue("mileslog" in new);
 		self.assertTrue("sales" in new);
+
+	def test_someNew(self):
+		local = [self.file1, self.file2, self.file3, self.file4];
+		remote = [self.file1, self.file2];
+		new, mod, unmod, delt = deploy.compareFiles(local, remote);
+		self.assertEqual(len(new), 2);
+		self.assertEqual(len(mod), 0);
+		self.assertEqual(len(unmod), 2);
+		self.assertEqual(len(delt), 0);
+
+		self.assertTrue("mileslog" in new);
+		self.assertTrue("sales" in new);
+		self.assertTrue("polo" in unmod);
+		self.assertTrue("golf" in unmod);
 
 if __name__ == "__main__":
 	unittest.main();

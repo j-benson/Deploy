@@ -81,14 +81,30 @@ def _remote_listFiles(path, rpath):
 class File(object):
     def __init__(self):
         self.path = "";
-        self.rpath = "";
-        self.name = "";
-        self.modified = "";
-    def __init__(self, path, rpath, name, modified):
+        self.modified = 0
+    def __init__(self, path, modified):
         self.path = path;
-        self.rpath = rpath;
-        self.name = name;
         self.modified = modified;
+    # Object Comparison
+    def __eq__(self, other):
+        """As File objects will only be compared within a directory the unique
+        identitifier will be the name."""
+        return self.name() == other.name();
+    def __lt__(self, other):
+        """Determine if the file is older than other using the modified timestamp."""
+        return self.modified < other.modified;
+    def __gt__(self, other):
+        """Determine if the file is newer than other using the modified timestamp."""
+        return self.modified > other.modified;
+    def __le__(self, other):
+        """Determine if the file is older or the same than other using the modified timestamp."""
+        return self.modified <= other.modified;
+    def __ge__(self, other):
+        """Determine if the file is newer or the same than other using the modified timestamp."""
+        return self.modified >= other.modified;
+
+    def name(self):
+        return os.path.basename(self.path);
 # === End Structures ===
 
 def compareFiles(localList, remoteList, checkDeleted = True):
@@ -111,9 +127,9 @@ def compareFiles(localList, remoteList, checkDeleted = True):
     for lfile in localList:
         existsInRemote = False;
         for rfile in remoteList:
-            if lfile.name == rfile.name:
+            if lfile == rfile:
                 existsInRemote = True;
-                if lfile.modified > rfile.modified:
+                if lfile > rfile:
                     modified.add(lfile);
                 else:
                     unmodified.add(lfile);
@@ -126,7 +142,7 @@ def compareFiles(localList, remoteList, checkDeleted = True):
         for rfile in remoteList:
             existsInLocal = False;
             for lfile in localList:
-                if rfile.name == lfile.name:
+                if rfile == lfile:
                     existsInLocal = True;
                     break;
             if not existsInLocal:

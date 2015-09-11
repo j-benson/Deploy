@@ -80,6 +80,19 @@ class CompareDirs(unittest.TestCase):
 		self.assertTrue("vw" in ex);
 		self.assertTrue("bmw" in ex);
 
+	def test_someDeleted(self):
+		local = [self.dir1, self.dir3];
+		remote = [self.dir1, self.dir2, self.dir3, self.dir4];
+		new, ex, delt = deploy.compareDirs(local, remote);
+		self.assertEqual(len(new), 0);
+		self.assertEqual(len(ex), 2);
+		self.assertEqual(len(delt), 2);
+
+		self.assertTrue("vw" in ex);
+		self.assertTrue("ford" in ex);
+		self.assertTrue("bmw" in delt);
+		self.assertTrue("renolt" in delt);
+
 class CompareFiles(unittest.TestCase):
 	def setUp(self):
 		self.file1 = deploy.File("D:\\vw\\polo", 0);
@@ -126,6 +139,34 @@ class CompareFiles(unittest.TestCase):
 		self.assertTrue("sales" in new);
 		self.assertTrue("polo" in unmod);
 		self.assertTrue("golf" in unmod);
+
+	def test_someModified(self):
+		local = [self.file1, self.file2, self.file3_1, self.file4];
+		remote = [self.file1, self.file2, self.file3, self.file4];
+		new, mod, unmod, delt = deploy.compareFiles(local, remote);
+		self.assertEqual(len(new), 0);
+		self.assertEqual(len(mod), 1);
+		self.assertEqual(len(unmod), 3);
+		self.assertEqual(len(delt), 0);
+
+		self.assertTrue("mileslog" in mod);
+		self.assertTrue("polo" in unmod);
+		self.assertTrue("golf" in unmod);
+		self.assertTrue("sales" in unmod);
+
+	def test_someDeleted(self):
+		local = [self.file1, self.file2, self.file3_1];
+		remote = [self.file1, self.file2, self.file3, self.file4];
+		new, mod, unmod, delt = deploy.compareFiles(local, remote);
+		self.assertEqual(len(new), 0);
+		self.assertEqual(len(mod), 1);
+		self.assertEqual(len(unmod), 2);
+		self.assertEqual(len(delt), 1);
+
+		self.assertTrue("mileslog" in mod);
+		self.assertTrue("polo" in unmod);
+		self.assertTrue("golf" in unmod);
+		self.assertTrue("sales" in delt);
 
 if __name__ == "__main__":
 	unittest.main();

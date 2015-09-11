@@ -89,7 +89,10 @@ class File(object):
     def __eq__(self, other):
         """As File objects will only be compared within a directory the unique
         identitifier will be the name."""
-        return self.name() == other.name();
+        if isinstance(other, File):
+            return self.name() == other.name();
+        else:
+            return self.name() == str(other);
     def __lt__(self, other):
         """Determine if the file is older than other using the modified timestamp."""
         return self.modified < other.modified;
@@ -130,12 +133,12 @@ def compareFiles(localList, remoteList, checkDeleted = True):
             if lfile == rfile:
                 existsInRemote = True;
                 if lfile > rfile:
-                    modified.add(lfile);
+                    modified.append(lfile);
                 else:
-                    unmodified.add(lfile);
+                    unmodified.append(lfile);
                 break;
         if not existsInRemote:
-            new.add(lfile);
+            new.append(lfile);
 
     # Check for deleted files
     if checkDeleted:
@@ -146,7 +149,7 @@ def compareFiles(localList, remoteList, checkDeleted = True):
                     existsInLocal = True;
                     break;
             if not existsInLocal:
-                deleted.add(rfile);
+                deleted.append(rfile);
 
     return (new, modified, unmodified, deleted);
 

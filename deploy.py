@@ -5,21 +5,6 @@
     - Update modified files
     - Add new files
     - Optional, remove deleted files from remote
-    - Traverse directories, remote and local.
-
-
-    ----------
-    input:
-        Website directory on local filesystem
-        FTP server address
-        FTP username and password
-        Website directory on FTP server
-    process:
-        traverse local file tree
-        traverse remote file tree
-        At each stage in the traversal
-            compare local dirs and files with remote -> to find new and modified dirs and files
-            compare remote dirs and files with local -> to find deleted dirs and files.
 """
 ######################### SETUP ##########################
 remoteHost = "127.0.0.1";
@@ -39,62 +24,77 @@ if remoteTLS:
     import ssl;
 
 ftp = None;
-
+# === FTP Functions ===
 def connect():
     if remoteTLS:
         context = ssl.create_default_context();
-        ftp = FTP_TLS(remoteHost, remoteUser, remotePassword, acct="", keyfile=None, certfile=None, context=context);
+        ftp = FTP_TLS(remoteHost, remoteUser, remotePassword, acct="", keyfile=None, certfile=None, context=context, 20);
         ftp.prot_p();
     else:
-        ftp = FTP(remoteHost, remoteUser, remotePassword);
+        ftp = FTP(remoteHost, remoteUser, remotePassword, 20);
     print(ftp.getwelcome());
 
+def setCwd(path):
+    pass;
+def send(file): #instead of path here put in cwd?
+    """Send the file obj to the cwd of ftp server."""
+    pass;
+def rm(file):
+    """Delete the file obj from the cwd of the fpt server."""
+    pass;
+def mkDir(name):
+    pass;
+def rmDir(name):
+    """Delete directory with name from the current working directory."""
+    pass;
+# === End FTP Functions ===
+
 # === Traversal Functions ===
-def traverse():
-    # traverse local first
+def traverse(localPath, remotePath):
+    setCwk(remotePath);
+    newF, modifiedF, unmodifiedF, deletedF = compareFiles(listLocalFiles(localPath),
+                                                        listRemoteFiles(remotePath),
+                                                        remoteDelete);
+    newD, existingD, deletedD = compareDirs(listLocalDirs(localPath),
+                                listRemoteDirs(remotePath),
+                                remoteDelete);
+    for f in newF + modifiedF:
+        send(f);
+    if remoteDelete:
+        for f in deletedF:
+            rm(f);
+    for d in newD:
+        mkdir(d);
+    for d in newD + existingD:
+        traverse(os.path.join(localPath, d), remotePath + "/" + d);
+    if remoteDelete:
+        for d in deletedD:
+            rmDir(d);
 
-    # local files
-    localFiles = listFiles(localPath);
+def listLocalDirs(path):
+    dirs = [];
+    names = os.listdir(path);
+    for n in names:
+        if os.path.isdir(os.path.join(path, n)):
+            dirs.append(n);
+    return dirs;
+def listRemoteDirs(path):
+    return [];
 
-def _traverse(path):
-    pass
-
-def listDirs(path, rpath = ""):
-    pass
-def _local_listDirs(path, rpath):
-    pass
-def _remote_listDirs(path, rpath):
-    pass
-
-def listFiles(path, rpath = ""):
-    """ Get a list of files within a directory relative to the home path. """
-    pass
-def _local_listFiles(path, rpath):
-    pass
-def _remote_listFiles(path, rpath):
-    pass
-
+def listLocalFiles(path):
+    files = [];
+    names = os.listdir(path);
+    for n in names:
+        fpath = os.path.join(path, n);
+        if os.path.isfile(fpath):
+            files.append(File(fpath, 0)); # TODO: get date modified
+    return files;
+def listRemoteFiles(path):
+    return [];
 
 # === End Traversal Functions ===
 
 # === Structures ===
-class Dir(object):
-    """Not sure whether I'll use this?"""
-    def __init__(self):
-        pass;
-    def __init__(self, path):
-        self.path = path;
-        self.files = [];
-    def __eq__(self, other):
-        if isinstance(other, Dir):
-            return self.name() == other.name();
-        else:
-            return self.name() == str(other);
-    def name(self):
-        return os.path.basename(self.path);
-    def addFile(file):
-        self.files.append(file);
-
 class File(object):
     def __init__(self):
         self.path = "";
@@ -102,6 +102,8 @@ class File(object):
     def __init__(self, path, modified):
         self.path = path;
         self.modified = modified;
+    def __str__(self):
+        return self.name();
     # Object Comparison
     def __eq__(self, other):
         """As File objects will only be compared within a directory the unique

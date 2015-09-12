@@ -5,6 +5,9 @@
     - Update modified files
     - Add new files
     - Optional, remove deleted files from remote
+
+    Author: James Benson
+    Version: 0.8.0
 """
 ######################### SETUP ##########################
 remoteHost = "127.0.0.1";
@@ -16,7 +19,9 @@ remotePath = "/";
 ### OPTIONS ###
 remoteTLS = False;
 remoteDelete = False;
-
+remoteASCII = ['coffee', 'css', 'erb', 'haml', 'handlebars', 'hb', 'htm', 'html',
+    'js', 'less', 'markdown', 'md', 'ms', 'mustache', 'php', 'rb', 'sass', 'scss',
+    'slim', 'txt', 'xhtml', 'xml']
 ##########################################################
 import os;
 from ftplib import FTP, FTP_TLS;
@@ -28,25 +33,25 @@ ftp = None;
 def connect():
     if remoteTLS:
         context = ssl.create_default_context();
-        ftp = FTP_TLS(remoteHost, remoteUser, remotePassword, acct="", keyfile=None, certfile=None, context=context, 20);
+        ftp = FTP_TLS(remoteHost, remoteUser, remotePassword, acct="", keyfile=None, certfile=None, context=context, timeout=20);
         ftp.prot_p();
     else:
         ftp = FTP(remoteHost, remoteUser, remotePassword, 20);
     print(ftp.getwelcome());
 
 def setCwd(path):
-    pass;
-def send(file): #instead of path here put in cwd?
+    response = ftp.cwd(path);
+def send(file):
     """Send the file obj to the cwd of ftp server."""
     pass;
 def rm(file):
     """Delete the file obj from the cwd of the fpt server."""
-    pass;
+    response = ftp.delete(str(file));
 def mkDir(name):
-    pass;
+    response = ftp.mkd(name);
 def rmDir(name):
     """Delete directory with name from the current working directory."""
-    pass;
+    response = ftp.rmd(name);
 # === End FTP Functions ===
 
 # === Traversal Functions ===
@@ -91,7 +96,6 @@ def listLocalFiles(path):
     return files;
 def listRemoteFiles(path):
     return [];
-
 # === End Traversal Functions ===
 
 # === Structures ===

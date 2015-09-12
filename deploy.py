@@ -8,6 +8,7 @@
 
     Author: James Benson
     Version:
+    Requires: python 3.3+
 """
 """
     MLSD - means machine listing of directory
@@ -23,15 +24,16 @@ remoteHost = "127.0.0.1";
 remoteUser = "Benson";
 remotePassword = "benson";
 localPath = "D:\\test\\remote";
-remoteSep = "/";
 remotePath = "/";
 
 ### OPTIONS ###
 remoteTLS = False;
 remoteDelete = False;
+
 remoteASCII = ['coffee', 'css', 'erb', 'haml', 'handlebars', 'hb', 'htm', 'html',
     'js', 'less', 'markdown', 'md', 'ms', 'mustache', 'php', 'rb', 'sass', 'scss',
     'slim', 'txt', 'xhtml', 'xml']
+remoteSep = "/";
 ##########################################################
 import os;
 from ftplib import FTP, FTP_TLS;
@@ -39,7 +41,6 @@ if remoteTLS:
     import ssl;
 
 ftp = None;
-r_mlsd = None;
 # === FTP Functions ===
 def connect():
     if remoteTLS:
@@ -51,18 +52,28 @@ def connect():
     print(ftp.getwelcome());
 
 def setCwd(path):
-    response = ftp.cwd(path);
+    ftp.cwd(path);
 def send(file):
     """Send the file obj to the cwd of ftp server."""
-    pass;
+    name, ext = os.path.splitext(file.name());
+    try:
+        if ext.lstrip('.') in remoteASCII:
+            # Store in ASCII mode
+            ftp.storlines("STOR %s" % file, open(file.path(), "rt"));
+        else:
+            # Store in binary mode
+            ftp.storbinary("STOR %s" % file, open(file.path(), "rb"));
+    except OSError:
+        print("Failed: %s" % file);
+
 def rm(file):
     """Delete the file obj from the cwd of the fpt server."""
-    response = ftp.delete(str(file));
+    ftp.delete(str(file));
 def mkDir(name):
-    response = ftp.mkd(name);
+    ftp.mkd(name);
 def rmDir(name):
     """Delete directory with name from the current working directory."""
-    response = ftp.rmd(name);
+    ftp.rmd(name);
 # === End FTP Functions ===
 
 # === Traversal Functions ===
@@ -100,14 +111,13 @@ def listLocal(path): # might merge these list functions together
 def listRemote(path):
     dirs = [];
     files = [];
-    global r_mlsd = [];
     response = ftp.mlsd(path="", facts=["type", "modify, size"]);
     for name, facts in response:
         if fact.type == "dir":
             dirs.append(name);
         if fact.type == "file":
             files.append(File(remoteJoin(path, name), fact.modify));
-    return return (dirs, files);
+    return (dirs, files);
 
 # === End Traversal Functions ===
 

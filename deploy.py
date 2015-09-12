@@ -1,19 +1,29 @@
 """
     Script to deploy a website to the server by ftp.
 
-    - Compare local directory with remote directory
-    - Update modified files
-    - Add new files
-    - Optional, remove deleted files from remote
+        - Compares local directory with remote directory
+        - Updates modified files
+        - Adds new files
+        - Optionally, removes deleted files from remote
 
     Author: James Benson
-    Version: 0.8.0
+    Version:
+"""
+"""
+    MLSD - means machine listing of directory
+    TODO: FTP response codes to look out for:
+        - 502 unknown command
+        - 550 empty directory
+
+    Good ones:
+        - 226 transfer complete
 """
 ######################### SETUP ##########################
 remoteHost = "127.0.0.1";
 remoteUser = "Benson";
 remotePassword = "benson";
 localPath = "D:\\test\\remote";
+remoteSep = "/";
 remotePath = "/";
 
 ### OPTIONS ###
@@ -29,6 +39,7 @@ if remoteTLS:
     import ssl;
 
 ftp = None;
+r_mlsd = None;
 # === FTP Functions ===
 def connect():
     if remoteTLS:
@@ -55,48 +66,55 @@ def rmDir(name):
 # === End FTP Functions ===
 
 # === Traversal Functions ===
-def traverse(localPath, remotePath):
+def traverse(localPath, remotePath = remoteSep):
     setCwk(remotePath);
-    newF, modifiedF, unmodifiedF, deletedF = compareFiles(listLocalFiles(localPath),
-                                                        listRemoteFiles(remotePath),
-                                                        remoteDelete);
-    newD, existingD, deletedD = compareDirs(listLocalDirs(localPath),
-                                listRemoteDirs(remotePath),
-                                remoteDelete);
+    localDirs, localFiles = listLocal(localPath);
+    remoteDirs, remoteFiles = listRemote(remotePath);
+    newF, modifiedF, unmodifiedF, deletedF = compareFiles(localFiles, remoteFiles, remoteDelete);
+    newD, existingD, deletedD = compareDirs(localDirs, remoteDirs, remoteDelete);
     for f in newF + modifiedF:
         send(f);
-    if remoteDelete:
-        for f in deletedF:
-            rm(f);
     for d in newD:
         mkdir(d);
     for d in newD + existingD:
-        traverse(os.path.join(localPath, d), remotePath + "/" + d);
+        traverse(os.path.join(localPath, d), remoteJoin(remotePath, d));
     if remoteDelete:
         for d in deletedD:
             rmDir(d);
+        for f in deletedF:
+            rm(f);
 
-def listLocalDirs(path):
+def listLocal(path): # might merge these list functions together
     dirs = [];
-    names = os.listdir(path);
-    for n in names:
-        if os.path.isdir(os.path.join(path, n)):
-            dirs.append(n);
-    return dirs;
-def listRemoteDirs(path):
-    return [];
-
-def listLocalFiles(path):
     files = [];
     names = os.listdir(path);
     for n in names:
-        fpath = os.path.join(path, n);
-        if os.path.isfile(fpath):
-            files.append(File(fpath, 0)); # TODO: get date modified
-    return files;
-def listRemoteFiles(path):
-    return [];
+        fullp = os.path.join(path, n);
+        if os.path.isdir(fullp):
+            dirs.append(n);
+        if os.path.isfile(fullp):
+            #stat = os.stat(fullp);
+            files.append(File(fullp, os.stat(fullp).st_mtime));
+    return (dirs, files);
+
+def listRemote(path):
+    dirs = [];
+    files = [];
+    global r_mlsd = [];
+    response = ftp.mlsd(path="", facts=["type", "modify, size"]);
+    for name, facts in response:
+        if fact.type == "dir":
+            dirs.append(name);
+        if fact.type == "file":
+            files.append(File(remoteJoin(path, name), fact.modify));
+    return return (dirs, files);
+
 # === End Traversal Functions ===
+
+def remoteJoin(pathA, pathB):
+    if not pathA.endwith(remoteSep):
+        pathA += remoteSep;
+    return pathA + pathB;
 
 # === Structures ===
 class File(object):

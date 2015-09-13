@@ -16,6 +16,7 @@
     TODO: FTP response codes to look out for:
         - 502 unknown command
         - 550 empty directory
+        - 451 can't remove directory
 
     Good ones:
         - 226 transfer complete
@@ -37,8 +38,8 @@ remotePath = "/";
 ### OPTIONS ###
 verbose = True;
 remoteTLS = False;
-remoteDelete = False;
-storMode = STOR_BINARY;
+remoteDelete = True;
+storMode = STOR_BINARY; # only binary currently works
 ##########################################################
 import os;
 from ftplib import FTP, FTP_TLS, error_reply, error_temp, error_perm, error_proto, all_errors;
@@ -90,7 +91,8 @@ def mkDir(name):
     ftp.mkd(name);
     if verbose: print("Created: %s" % remoteJoin(cwd, name));
 def rmDir(name):
-    """Delete directory with name from the current working directory."""
+    """Delete directory with name from the current working directory.
+    Only deletes empty directories."""
     ftp.rmd(name);
     if verbose: print("Deleted: %s" % remoteJoin(cwd, name));
 def setModified(file):

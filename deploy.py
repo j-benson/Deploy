@@ -151,6 +151,7 @@ def listLocal(path):
             f = File(fullp);
             f.setModifiedFromEpoch(os.stat(fullp).st_mtime);
             files.append(f);
+            #print("%s: %s" % (f.path, f.getModified()));
     return (dirs, files);
 
 def listRemote(path = ""):
@@ -164,6 +165,7 @@ def listRemote(path = ""):
             f = File(remoteJoin(path, name));
             f.setModifiedFromStr(fact["modify"]);
             files.append(f);
+            #print("%s: %s" % (f.path, f.getModified()));
     return (dirs, files);
 # === End Traversal Functions ===
 

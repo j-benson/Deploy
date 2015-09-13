@@ -47,7 +47,6 @@ if remoteTLS:
     import ssl;
 
 ftp = None;
-cwd = None;
 # === FTP Functions ===
 def connect():
     global ftp;
@@ -59,64 +58,85 @@ def connect():
         ftp = FTP(remoteHost, remoteUser, remotePassword, 20);
     print(ftp.getwelcome());
 
-def setCwd(path):
-    ftp.cwd(path);
-    global cwd;
-    cwd = path;
-    if verbose: print("Cwd: %s" % path);
-def stor(file):
+def stor(dirpath, file):
     """stor the file obj to the cwd of ftp server."""
-    ext = os.path.splitext(file.name())[1];
+    ext = (os.path.splitext(file.name())[1]).lstrip('.');
+    storpath = remoteJoin(dirpath, file.name());
     try:
-        if (storMode == STOR_ASCII) or (storMode == STOR_AUTO and ext.lstrip('.') in asciiExt):
+        if (storMode == STOR_ASCII) or (storMode == STOR_AUTO and ext in asciiExt):
             # Store in ASCII mode
             if verbose: print("[asc] ", end="");
             #with open(file.path, "rt") as fo:
-            ftp.storlines("STOR %s" % file.name(), open(file.path));
+            ftp.storlines("STOR %s" % storpath, open(file.path));
         else:
             # Store in binary mode
             if verbose: print("[bin] ", end="");
-            ftp.storbinary("STOR %s" % file.name(), open(file.path, "rb"));
+            ftp.storbinary("STOR %s" % storpath, open(file.path, "rb"));
         # TODO: Add modified stamp to remote file.
         setModified(file);
-        if verbose: print("Uploaded: %s -> %s" % (file.path, remoteJoin(cwd, file.name())));
+        if verbose: print("Uploaded: %s -> %s" % (file.path, storpath));
     except OSError as oserror:
         print("Failed: %s\n  %s" % (file.path, oserror));
 
-def rm(file):
-    """Delete the file obj from the cwd of the fpt server."""
-    ftp.delete(str(file));
-    if verbose: print("Deleted: %s" % file.path);
-def mkDir(name):
-    ftp.mkd(name);
-    if verbose: print("Created: %s" % remoteJoin(cwd, name));
-def rmDir(name):
+def rm(dirpath, file):
+    """Delete the file at the path from the server."""
+    p = remoteJoin(dirpath, file.name());
+    _rm(p);
+    if verbose: print("Deleted: %s" % p);
+def _rm(filepath):
+    ftp.delete(filepath);
+
+def mkDir(dirpath, name):
+    dirname = remoteJoin(dirpath, name);
+    ftp.mkd(dirname);
+    if verbose: print("Created: %s" % dirname);
+
+def rmDir(dirpath, name, recursive = False):
+    dirname = remoteJoin(dirpath, name);
+    if recursive:
+        _rmDirR(dirname);
+        _rmDir(dirname);
+    else:
+        _rmDir(dirname);
+    if verbose: print("Deleted: %s" % remoteJoin(dirname, "*"));
+def _rmDir(dirpath):
     """Delete directory with name from the current working directory.
     Only deletes empty directories."""
-    ftp.rmd(name);
-    if verbose: print("Deleted: %s" % remoteJoin(cwd, name));
+    ftp.rmd(dirpath);
+def _rmDirR(dirpath):
+    """Remove the directory at dirpath and its contents (recursive)."""
+    try:
+        dirs, files = listRemote(dirpath);
+        for f in files:
+            _rm(remoteJoin(dirpath, f.name()));
+        for d in dirs:
+            dp = remoteJoin(dirpath, d);
+            _rmDirR(dp);
+            _rmDir(dp);
+    except:
+        raise error_temp("451 Can't remove directory");
+
 def setModified(file):
     pass;
 # === End FTP Functions ===
 
 # === Traversal Functions ===
 def traverse(localPath, remotePath = remoteSep):
-    setCwd(remotePath);
     localDirs, localFiles = listLocal(localPath);
     remoteDirs, remoteFiles = listRemote(remotePath);
     newF, modifiedF, unmodifiedF, deletedF = compareFiles(localFiles, remoteFiles, remoteDelete);
     newD, existingD, deletedD = compareDirs(localDirs, remoteDirs, remoteDelete);
     for f in newF + modifiedF:
-        stor(f);
+        stor(remotePath, f);
     for d in newD:
-        mkDir(d);
+        mkDir(remotePath, d);
     for d in newD + existingD:
         traverse(os.path.join(localPath, d), remoteJoin(remotePath, d));
     if remoteDelete:
         for d in deletedD:
-            rmDir(d);
+            rmDir(remotePath, d, True);
         for f in deletedF:
-            rm(f);
+            rm(remotePath, f);
 
 def listLocal(path):
     dirs = [];
@@ -131,17 +151,16 @@ def listLocal(path):
             files.append(File(fullp, os.stat(fullp).st_mtime));
     return (dirs, files);
 
-def listRemote(path):
+def listRemote(path = ""):
     dirs = [];
     files = [];
-    response = ftp.mlsd();
+    response = ftp.mlsd(path);
     for name, fact in response:
         if fact["type"] == "dir":
             dirs.append(name);
         if fact["type"] == "file":
             files.append(File(remoteJoin(path, name), fact["modify"]));
     return (dirs, files);
-
 # === End Traversal Functions ===
 
 def remoteJoin(pathA, pathB):
@@ -155,7 +174,7 @@ def remoteJoin(pathA, pathB):
 class File(object):
     def __init__(self):
         self.path = "";
-        self.modified = 0
+        self.modified = 0;
     def __init__(self, path, modified):
         self.path = str(path);
         self.modified = int(modified);
@@ -187,6 +206,7 @@ class File(object):
     def path(self):
         return self.path;
     def modified(self):
+        #From mlsd function time is in format yyyymmddHHMMSS[.mmmm?]
         return self.modified;
 # === End Structures ===
 

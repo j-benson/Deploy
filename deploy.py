@@ -23,7 +23,7 @@
 remoteHost = "127.0.0.1";
 remoteUser = "Benson";
 remotePassword = "benson";
-localPath = "D:\\test\\remote";
+localPath = "D:\\test\\ftp";
 remotePath = "/";
 
 ### OPTIONS ###
@@ -36,13 +36,14 @@ remoteASCII = ['coffee', 'css', 'erb', 'haml', 'handlebars', 'hb', 'htm', 'html'
 remoteSep = "/";
 ##########################################################
 import os;
-from ftplib import FTP, FTP_TLS;
+from ftplib import FTP, FTP_TLS, error_reply, error_temp, error_perm, error_proto;
 if remoteTLS:
     import ssl;
 
 ftp = None;
 # === FTP Functions ===
 def connect():
+    global ftp;
     if remoteTLS:
         context = ssl.create_default_context();
         ftp = FTP_TLS(remoteHost, remoteUser, remotePassword, acct="", keyfile=None, certfile=None, context=context, timeout=20);
@@ -78,7 +79,7 @@ def rmDir(name):
 
 # === Traversal Functions ===
 def traverse(localPath, remotePath = remoteSep):
-    setCwk(remotePath);
+    setCwd(remotePath);
     localDirs, localFiles = listLocal(localPath);
     remoteDirs, remoteFiles = listRemote(remotePath);
     newF, modifiedF, unmodifiedF, deletedF = compareFiles(localFiles, remoteFiles, remoteDelete);
@@ -95,7 +96,7 @@ def traverse(localPath, remotePath = remoteSep):
         for f in deletedF:
             rm(f);
 
-def listLocal(path): # might merge these list functions together
+def listLocal(path):
     dirs = [];
     files = [];
     names = os.listdir(path);
@@ -122,8 +123,10 @@ def listRemote(path):
 # === End Traversal Functions ===
 
 def remoteJoin(pathA, pathB):
-    if not pathA.endwith(remoteSep):
+    if not pathA.endswith(remoteSep) and not pathB.startswith(remoteSep):
         pathA += remoteSep;
+    elif pathA.endswith(remoteSep) and pathB.startswith(remoteSep):
+        pathA = pathA.rstrip(remoteSep);
     return pathA + pathB;
 
 # === Structures ===
@@ -240,7 +243,27 @@ def compareDirs(localList, remoteList, checkDeleted = True):
     return (new, existing, deleted);
 
 def main():
-    pass
+    if not os.path.isdir(localPath):
+        print("Not Found: %s" % localPath);
+        return;
+
+    try:
+        connect();
+        traverse(localPath, remotePath);
+    except error_reply as r:
+        print(r);
+    except error_temp as t:
+        print(t);
+    except error_perm as p:
+        print(p);
+    except error_proto as pr:
+        print(pr);
+    except all_errors as a:
+        print(a);
+    finally:
+        if not ftp == None:
+            ftp.quit();
+            ftp.close();
 
 if __name__ == "__main__":
     main();

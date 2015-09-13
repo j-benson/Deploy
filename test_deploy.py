@@ -1,5 +1,7 @@
 import unittest;
 import deploy;
+import os;
+import shutil;
 
 class CompareFileObj(unittest.TestCase):
 	def setUp(self):
@@ -167,6 +169,46 @@ class CompareFiles(unittest.TestCase):
 		self.assertTrue("polo" in unmod);
 		self.assertTrue("golf" in unmod);
 		self.assertTrue("sales" in delt);
+
+class RemoteJoin(unittest.TestCase):
+	def test_join(self):
+		deploy.remoteSep = "/"
+		self.assertEqual(deploy.remoteJoin("/path/to", "spain"), "/path/to/spain");
+		self.assertEqual(deploy.remoteJoin("/path/to/", "spain"), "/path/to/spain");
+		self.assertEqual(deploy.remoteJoin("/path/to", "/spain"), "/path/to/spain");
+		self.assertEqual(deploy.remoteJoin("/path/to/", "/spain"), "/path/to/spain");
+	def test_joinRoot(self):
+		deploy.remoteSep = "/"
+		self.assertEqual(deploy.remoteJoin("/", "spain"), "/spain");
+		self.assertEqual(deploy.remoteJoin("", "spain"), "/spain");
+		self.assertEqual(deploy.remoteJoin("/", "/spain"), "/spain");
+		self.assertEqual(deploy.remoteJoin("", "/spain"), "/spain");
+
+class ListLocal(unittest.TestCase):
+	def setUp(self):
+		self.testDir = "TestCase_ListLocal";
+		os.mkdir(self.testDir);
+		self.rootFile1 = os.path.join(self.testDir, "RootFile1.txt");
+		makeFile(self.rootFile1, "This file is on the root.\n\nYadda Yadda.")
+		self.rootFile2 = os.path.join(self.testDir, "RootFile2.txt");
+		makeFile(self.rootFile2, "This another file is on the root.")
+		self.sub1 = os.path.join(self.testDir, "Subfolder1");
+		os.mkdir(self.sub1);
+
+	def test_list(self):
+		d, f = deploy.listLocal(self.testDir);
+		self.assertEqual(len(d), 1);
+		self.assertEqual(len(f), 2);
+		self.assertTrue(os.path.basename(self.sub1) in d);
+		self.assertTrue(os.path.basename(self.rootFile1) in f);
+		self.assertTrue(os.path.basename(self.rootFile2) in f);
+
+	def tearDown(self):
+		shutil.rmtree(self.testDir);
+
+def makeFile(path, data):
+	with open(path, "wt") as f:
+		f.write(data);
 
 if __name__ == "__main__":
 	unittest.main();

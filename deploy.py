@@ -57,22 +57,22 @@ def setCwd(path):
     ftp.cwd(path);
 def send(file):
     """Send the file obj to the cwd of ftp server."""
-    name, ext = os.path.splitext(file.name());
+    ext = os.path.splitext(file.name())[1];
     try:
         if ext.lstrip('.') in remoteASCII:
             # Store in ASCII mode
             if verbose: print("[asc] ", end="");
-            with open(file.path, "rt") as fo:
-                ftp.storlines("STOR %s" % file.name(), fo);
+            #with open(file.path, "rt") as fo:
+            ftp.storlines("STOR %s" % file.name(), open(file.path));
         else:
             # Store in binary mode
             if verbose: print("[bin] ", end="");
-            fo = open(file.path(), "rb");
+            fo = open(file.path, "rb");
             ftp.storbinary("STOR %s" % file.name(), fo);
         # TODO: Add modified stamp to remote file.
-        if verbose: print("Uploaded: %s", file.path());
+        if verbose: print("Uploaded: %s", file.path);
     except OSError as oserror:
-        print("Failed: %s\n  %s" % (file.path(), oserror));
+        print("Failed: %s\n  %s" % (file.path, oserror));
 
 def rm(file):
     """Delete the file obj from the cwd of the fpt server."""
@@ -166,11 +166,13 @@ class File(object):
     def __ge__(self, other):
         """Determine if the file is newer or the same than other using the modified timestamp."""
         return self.modified >= other.modified;
-
+    # End Object Comparison
     def name(self):
         return os.path.basename(self.path);
     def path(self):
         return self.path;
+    def modified(self):
+        return self.modified;
 # === End Structures ===
 
 def compareFiles(localList, remoteList, checkDeleted = True):
@@ -253,9 +255,8 @@ def compareDirs(localList, remoteList, checkDeleted = True):
 
 def main():
     if not os.path.isdir(localPath):
-        print("Not Found: %s" % localPath);
-        return;
-
+        print("Path Not Found: %s" % localPath);
+        return -1;
     try:
         connect();
         traverse(localPath, remotePath);
@@ -268,10 +269,14 @@ def main():
     except error_proto as pr:
         print(pr);
     except all_errors as a:
+        # REVIEW: all_errors is a tuple of (Error, OSError, EOFError)
+        # printing like this won't work I doubt, not sure.
         print(a);
     finally:
         if not ftp == None:
-            ftp.quit();
+            try:
+                ftp.quit();
+            except: pass;
             ftp.close();
 
 if __name__ == "__main__":

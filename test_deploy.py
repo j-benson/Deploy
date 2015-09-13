@@ -3,7 +3,62 @@ import deploy;
 import os;
 import shutil;
 
-class CompareFileObj(unittest.TestCase):
+class FileObj(unittest.TestCase):
+	def setUp(self):
+		self.file1 = deploy.File("W:\\file1.txt", 1234567);
+		self.file2 = deploy.File("W:\\file2.txt", 2345);
+		self.file3 = deploy.File("W:\\folder\\file3.txt", 7654);
+		self.file4 = deploy.File("W:\\folder\\file4.txt", 4321);
+	def test_str(self):
+		self.assertEqual(self.file1, "file1.txt");
+		self.assertEqual(self.file2, "file2.txt");
+		self.assertEqual(self.file3, "file3.txt");
+		self.assertEqual(self.file4, "file4.txt");
+	def test_name(self):
+		self.assertEqual(self.file1.name(), "file1.txt");
+		self.assertEqual(self.file2.name(), "file2.txt");
+		self.assertEqual(self.file3.name(), "file3.txt");
+		self.assertEqual(self.file4.name(), "file4.txt");
+	@unittest.skip("Path get method errors.")
+	def test_path(self):
+		# When called says Type Error: str object not callable
+		self.assertTrue(isinstance(self.file1, deploy.File));
+		self.assertTrue(isinstance(self.file2, deploy.File));
+		self.assertTrue(isinstance(self.file3, deploy.File));
+		self.assertTrue(isinstance(self.file4, deploy.File));
+
+		path1 = self.file1.path(); # Here type error str not callable, don't understand why.
+		path2 = self.file2.path(); # File is definitely File obj not str so it's not that.
+		path3 = self.file3.path();
+		path4 = self.file4.path();
+		self.assertTrue(isinstance(path1, str));
+		self.assertTrue(isinstance(path2, str));
+		self.assertTrue(isinstance(path3, str));
+		self.assertTrue(isinstance(path4, str));
+
+		self.assertEqual(self.file1.path(), "W:\\file1.txt");
+		self.assertEqual(self.file2.path(), "W:\\file2.txt");
+		self.assertEqual(self.file3.path(), "W:\\folder\\file3.txt");
+		self.assertEqual(self.file4.path(), "W:\\folder\\file4.txt");
+	def test_pathAttr(self):
+		self.assertEqual(self.file1.path, "W:\\file1.txt");
+		self.assertEqual(self.file2.path, "W:\\file2.txt");
+		self.assertEqual(self.file3.path, "W:\\folder\\file3.txt");
+		self.assertEqual(self.file4.path, "W:\\folder\\file4.txt");
+	@unittest.skip("Modified get method errors.")
+	def test_modified(self):
+		# When called says Type Error: int object not callable
+		self.assertEqual(self.file1.modified(), 1234567);
+		self.assertEqual(self.file2.modified(), 2345);
+		self.assertEqual(self.file3.modified(), 7654);
+		self.assertEqual(self.file4.modified(), 4321);
+	def test_modifiedAttr(self):
+		self.assertEqual(self.file1.modified, 1234567);
+		self.assertEqual(self.file2.modified, 2345);
+		self.assertEqual(self.file3.modified, 7654);
+		self.assertEqual(self.file4.modified, 4321);
+
+class FileObjComparison(unittest.TestCase):
 	def setUp(self):
 		self.file1 = deploy.File("D:\\filesame", 1);
 		self.file2 = deploy.File("D:\\filesame", 1);

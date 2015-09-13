@@ -9,6 +9,7 @@
     Author: James Benson
     Version:
     Requires: python 3.3+
+              Due to use of ftplib.mlsd()
 """
 """
     MLSD - means machine listing of directory
@@ -42,6 +43,7 @@ if remoteTLS:
     import ssl;
 
 ftp = None;
+cwd = None;
 # === FTP Functions ===
 def connect():
     global ftp;
@@ -55,6 +57,9 @@ def connect():
 
 def setCwd(path):
     ftp.cwd(path);
+    global cwd;
+    cwd = path;
+    if verbose: print("Cwd: %s" % path);
 def send(file):
     """Send the file obj to the cwd of ftp server."""
     ext = os.path.splitext(file.name())[1];
@@ -70,18 +75,21 @@ def send(file):
             fo = open(file.path, "rb");
             ftp.storbinary("STOR %s" % file.name(), fo);
         # TODO: Add modified stamp to remote file.
-        if verbose: print("Uploaded: %s", file.path);
+        if verbose: print("Uploaded: %s" % file.path);
     except OSError as oserror:
         print("Failed: %s\n  %s" % (file.path, oserror));
 
 def rm(file):
     """Delete the file obj from the cwd of the fpt server."""
     ftp.delete(str(file));
+    if verbose: print("Deleted: %s" % file.path);
 def mkDir(name):
     ftp.mkd(name);
+    if verbose: print("Created: %s" % remoteJoin(cwd, name));
 def rmDir(name):
     """Delete directory with name from the current working directory."""
     ftp.rmd(name);
+    if verbose: print("Deleted: %s" % remoteJoin(cwd, name));
 # === End FTP Functions ===
 
 # === Traversal Functions ===

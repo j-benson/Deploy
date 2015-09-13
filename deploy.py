@@ -27,6 +27,7 @@ localPath = "D:\\test\\ftp";
 remotePath = "/";
 
 ### OPTIONS ###
+verbose = True;
 remoteTLS = False;
 remoteDelete = False;
 
@@ -36,7 +37,7 @@ remoteASCII = ['coffee', 'css', 'erb', 'haml', 'handlebars', 'hb', 'htm', 'html'
 remoteSep = "/";
 ##########################################################
 import os;
-from ftplib import FTP, FTP_TLS, error_reply, error_temp, error_perm, error_proto;
+from ftplib import FTP, FTP_TLS, error_reply, error_temp, error_perm, error_proto, all_errors;
 if remoteTLS:
     import ssl;
 
@@ -60,12 +61,18 @@ def send(file):
     try:
         if ext.lstrip('.') in remoteASCII:
             # Store in ASCII mode
-            ftp.storlines("STOR %s" % file, open(file.path(), "rt"));
+            if verbose: print("[asc] ", end="");
+            with open(file.path, "rt") as fo:
+                ftp.storlines("STOR %s" % file.name(), fo);
         else:
             # Store in binary mode
-            ftp.storbinary("STOR %s" % file, open(file.path(), "rb"));
-    except OSError:
-        print("Failed: %s" % file);
+            if verbose: print("[bin] ", end="");
+            fo = open(file.path(), "rb");
+            ftp.storbinary("STOR %s" % file.name(), fo);
+        # TODO: Add modified stamp to remote file.
+        if verbose: print("Uploaded: %s", file.path());
+    except OSError as oserror:
+        print("Failed: %s\n  %s" % (file.path(), oserror));
 
 def rm(file):
     """Delete the file obj from the cwd of the fpt server."""
@@ -87,7 +94,7 @@ def traverse(localPath, remotePath = remoteSep):
     for f in newF + modifiedF:
         send(f);
     for d in newD:
-        mkdir(d);
+        mkDir(d);
     for d in newD + existingD:
         traverse(os.path.join(localPath, d), remoteJoin(remotePath, d));
     if remoteDelete:
@@ -112,12 +119,12 @@ def listLocal(path):
 def listRemote(path):
     dirs = [];
     files = [];
-    response = ftp.mlsd(path="", facts=["type", "modify, size"]);
-    for name, facts in response:
-        if fact.type == "dir":
+    response = ftp.mlsd();
+    for name, fact in response:
+        if fact["type"] == "dir":
             dirs.append(name);
-        if fact.type == "file":
-            files.append(File(remoteJoin(path, name), fact.modify));
+        if fact["type"] == "file":
+            files.append(File(remoteJoin(path, name), fact["modify"]));
     return (dirs, files);
 
 # === End Traversal Functions ===
@@ -135,8 +142,8 @@ class File(object):
         self.path = "";
         self.modified = 0
     def __init__(self, path, modified):
-        self.path = path;
-        self.modified = modified;
+        self.path = str(path);
+        self.modified = int(modified);
     def __str__(self):
         return self.name();
     # Object Comparison
@@ -162,6 +169,8 @@ class File(object):
 
     def name(self):
         return os.path.basename(self.path);
+    def path(self):
+        return self.path;
 # === End Structures ===
 
 def compareFiles(localList, remoteList, checkDeleted = True):

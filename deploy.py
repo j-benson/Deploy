@@ -42,6 +42,7 @@ remoteDelete = True;
 storMode = STOR_BINARY; # only binary currently works
 ##########################################################
 import os;
+from datetime import datetime;
 from ftplib import FTP, FTP_TLS, error_reply, error_temp, error_perm, error_proto, all_errors;
 if remoteTLS:
     import ssl;
@@ -59,7 +60,7 @@ def connect():
     print(ftp.getwelcome());
 
 def stor(dirpath, file):
-    """stor the file obj to the cwd of ftp server."""
+    """Store the file obj to the dirpath of server."""
     ext = (os.path.splitext(file.name())[1]).lstrip('.');
     storpath = remoteJoin(dirpath, file.name());
     try:
@@ -73,11 +74,13 @@ def stor(dirpath, file):
             if verbose: print("[bin] ", end="");
             ftp.storbinary("STOR %s" % storpath, open(file.path, "rb"));
         # TODO: Add modified stamp to remote file.
-        setModified(file);
+        setModified(dirpath, file);
         if verbose: print("Uploaded: %s -> %s" % (file.path, storpath));
     except OSError as oserror:
         print("Failed: %s\n  %s" % (file.path, oserror));
-
+def setModified(dirpath, file):
+    """Attempts to set the modified time with MFMT."""
+    ftp.voidcmd("MFMT %s %s" % (file.getModified(), remoteJoin(dirpath, file.name())));
 def rm(dirpath, file):
     """Delete the file at the path from the server."""
     p = remoteJoin(dirpath, file.name());
@@ -115,9 +118,6 @@ def _rmDirR(dirpath):
             _rmDir(dp);
     except:
         raise error_temp("451 Can't remove directory");
-
-def setModified(file):
-    pass;
 # === End FTP Functions ===
 
 # === Traversal Functions ===
@@ -148,7 +148,9 @@ def listLocal(path):
             dirs.append(n);
         if os.path.isfile(fullp):
             #stat = os.stat(fullp);
-            files.append(File(fullp, os.stat(fullp).st_mtime));
+            f = File(fullp);
+            f.setModifiedFromEpoch(os.stat(fullp).st_mtime);
+            files.append(f);
     return (dirs, files);
 
 def listRemote(path = ""):
@@ -159,7 +161,9 @@ def listRemote(path = ""):
         if fact["type"] == "dir":
             dirs.append(name);
         if fact["type"] == "file":
-            files.append(File(remoteJoin(path, name), fact["modify"]));
+            f = File(remoteJoin(path, name));
+            f.setModifiedFromStr(fact["modify"]);
+            files.append(f);
     return (dirs, files);
 # === End Traversal Functions ===
 
@@ -172,12 +176,9 @@ def remoteJoin(pathA, pathB):
 
 # === Structures ===
 class File(object):
-    def __init__(self):
-        self.path = "";
-        self.modified = 0;
-    def __init__(self, path, modified):
+    def __init__(self, path):
         self.path = str(path);
-        self.modified = int(modified);
+        self.datetimeFormat = "%Y%m%d%H%M%S";
     def __str__(self):
         return self.name();
     # Object Comparison
@@ -203,11 +204,12 @@ class File(object):
     # End Object Comparison
     def name(self):
         return os.path.basename(self.path);
-    def path(self):
-        return self.path;
-    def modified(self):
-        #From mlsd function time is in format yyyymmddHHMMSS[.mmmm?]
-        return self.modified;
+    def setModifiedFromStr(self, modified):
+        self.modified = datetime.strptime(modified, self.datetimeFormat);
+    def setModifiedFromEpoch(self, modified):
+        self.modified = datetime.utcfromtimestamp(modified);
+    def getModified(self):
+        return datetime.strftime(self.modified, self.datetimeFormat);
 # === End Structures ===
 
 def compareFiles(localList, remoteList, checkDeleted = True):
@@ -305,7 +307,7 @@ def main():
         print(pr);
     except all_errors as a:
         # REVIEW: all_errors is a tuple of (Error, OSError, EOFError)
-        # printing like this won't work I doubt, not sure.
+        # printing like this won't work I doubt, but I'm doing it anyway.
         print(a);
     finally:
         if not ftp == None:

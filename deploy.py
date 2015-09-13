@@ -20,6 +20,13 @@
     Good ones:
         - 226 transfer complete
 """
+asciiExt = ['coffee', 'css', 'erb', 'haml', 'handlebars', 'hb', 'htm', 'html',
+    'js', 'less', 'markdown', 'md', 'ms', 'mustache', 'php', 'rb', 'sass', 'scss',
+    'slim', 'txt', 'xhtml', 'xml']
+remoteSep = "/";
+STOR_AUTO = 0;
+STOR_BINARY = 1;
+STOR_ASCII = 2;
 ######################### SETUP ##########################
 remoteHost = "127.0.0.1";
 remoteUser = "Benson";
@@ -31,11 +38,7 @@ remotePath = "/";
 verbose = True;
 remoteTLS = False;
 remoteDelete = False;
-
-remoteASCII = ['coffee', 'css', 'erb', 'haml', 'handlebars', 'hb', 'htm', 'html',
-    'js', 'less', 'markdown', 'md', 'ms', 'mustache', 'php', 'rb', 'sass', 'scss',
-    'slim', 'txt', 'xhtml', 'xml']
-remoteSep = "/";
+storMode = STOR_BINARY;
 ##########################################################
 import os;
 from ftplib import FTP, FTP_TLS, error_reply, error_temp, error_perm, error_proto, all_errors;
@@ -60,11 +63,11 @@ def setCwd(path):
     global cwd;
     cwd = path;
     if verbose: print("Cwd: %s" % path);
-def send(file):
-    """Send the file obj to the cwd of ftp server."""
+def stor(file):
+    """stor the file obj to the cwd of ftp server."""
     ext = os.path.splitext(file.name())[1];
     try:
-        if ext.lstrip('.') in remoteASCII:
+        if (storMode == STOR_ASCII) or (storMode == STOR_AUTO and ext.lstrip('.') in asciiExt):
             # Store in ASCII mode
             if verbose: print("[asc] ", end="");
             #with open(file.path, "rt") as fo:
@@ -72,10 +75,10 @@ def send(file):
         else:
             # Store in binary mode
             if verbose: print("[bin] ", end="");
-            fo = open(file.path, "rb");
-            ftp.storbinary("STOR %s" % file.name(), fo);
+            ftp.storbinary("STOR %s" % file.name(), open(file.path, "rb"));
         # TODO: Add modified stamp to remote file.
-        if verbose: print("Uploaded: %s" % file.path);
+        setModified(file);
+        if verbose: print("Uploaded: %s -> %s" % (file.path, remoteJoin(cwd, file.name())));
     except OSError as oserror:
         print("Failed: %s\n  %s" % (file.path, oserror));
 
@@ -90,6 +93,8 @@ def rmDir(name):
     """Delete directory with name from the current working directory."""
     ftp.rmd(name);
     if verbose: print("Deleted: %s" % remoteJoin(cwd, name));
+def setModified(file):
+    pass;
 # === End FTP Functions ===
 
 # === Traversal Functions ===
@@ -100,7 +105,7 @@ def traverse(localPath, remotePath = remoteSep):
     newF, modifiedF, unmodifiedF, deletedF = compareFiles(localFiles, remoteFiles, remoteDelete);
     newD, existingD, deletedD = compareDirs(localDirs, remoteDirs, remoteDelete);
     for f in newF + modifiedF:
-        send(f);
+        stor(f);
     for d in newD:
         mkDir(d);
     for d in newD + existingD:

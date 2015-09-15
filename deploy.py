@@ -6,13 +6,14 @@
         - Adds new files
         - Optionally, removes deleted files from remote
 
-    Author: James Benson
-    Version:
     Requires: python 3.3+
               Due to use of ftplib.mlsd()
+
+    The MIT License (MIT)
+    Copyright (c) 2015 James Benson
 """
+
 """
-    MLSD - means machine listing of directory
     TODO: FTP response codes to look out for:
         - 502 unknown command
         - 550 empty directory
@@ -151,7 +152,7 @@ def listLocal(path):
             f = File(fullp);
             f.setModifiedFromEpoch(os.stat(fullp).st_mtime);
             files.append(f);
-            #print("%s: %s" % (f.path, f.getModified()));
+            print("LM: %s" % f.getModified());
     return (dirs, files);
 
 def listRemote(path = ""):
@@ -164,6 +165,7 @@ def listRemote(path = ""):
         if fact["type"] == "file":
             f = File(remoteJoin(path, name));
             f.setModifiedFromStr(fact["modify"]);
+            print("RM: %s"%fact["modify"]);
             files.append(f);
             #print("%s: %s" % (f.path, f.getModified()));
     return (dirs, files);

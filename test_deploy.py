@@ -1,3 +1,9 @@
+"""
+	Unit tests for deploy.py
+
+	The MIT License (MIT)
+	Copyright (c) 2015 James Benson
+"""
 import unittest;
 import deploy;
 import os;

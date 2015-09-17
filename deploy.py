@@ -29,6 +29,8 @@ remoteSep = "/";
 STOR_AUTO = 0;
 STOR_BINARY = 1;
 STOR_ASCII = 2;
+UPLOAD_OVERWRITE = 0;
+UPLOAD_MODIFIED = 1;
 ######################### SETUP ##########################
 remoteHost = "127.0.0.1";
 remoteUser = "Benson";
@@ -41,6 +43,7 @@ verbose = True;
 remoteTLS = False;
 remoteDelete = True;
 storMode = STOR_BINARY; # only binary currently works
+uploadMode = UPLOAD_OVERWRITE; # only overwrite currently works, modified has timezone issues.
 ##########################################################
 import os;
 from datetime import datetime;
@@ -238,7 +241,7 @@ def compareFiles(localList, remoteList, checkDeleted = True):
         for rfile in remoteList:
             if lfile == rfile:
                 existsInRemote = True;
-                if lfile > rfile:
+                if uploadMode == UPLOAD_OVERWRITE or lfile > rfile:
                     modified.append(lfile);
                 else:
                     unmodified.append(lfile);

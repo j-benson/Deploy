@@ -41,6 +41,7 @@ localPath = "D:\\test\\ftp";
 remotePath = "/";
 
 ### OPTIONS ###
+timezone = 1; # I know hardcoding the time zone is a great idea right.
 verbose = True;
 remoteTLS = False;
 remoteDelete = True;

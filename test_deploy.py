@@ -15,10 +15,10 @@ class FileObj(unittest.TestCase):
 		self.file2 = deploy.File("W:\\file2.txt");
 		self.file3 = deploy.File("W:\\folder\\file3.txt");
 		self.file4 = deploy.File("W:\\folder\\file4.txt");
-		self.file1.setModifiedFromStr("20150914003053");
-		self.file2.setModifiedFromStr("20150913213047");
-		self.file3.setModifiedFromStr("20150913182514");
-		self.file4.setModifiedFromStr("20150913163509");
+		self.file1.setModifiedUTCStr("20150914003053");
+		self.file2.setModifiedUTCStr("20150913213047");
+		self.file3.setModifiedUTCStr("20150913182514");
+		self.file4.setModifiedUTCStr("20150913163509");
 	def test_str(self):
 		self.assertEqual(self.file1, "file1.txt");
 		self.assertEqual(self.file2, "file2.txt");
@@ -46,10 +46,10 @@ class FileObjComparison(unittest.TestCase):
 		self.file2 = deploy.File("D:\\filesame");
 		self.file3 = deploy.File("D:\\filesame");
 		self.file4 = deploy.File("D:\\filediff");
-		self.file1.setModifiedFromStr("20150914103000");
-		self.file2.setModifiedFromStr("20150914103000");
-		self.file3.setModifiedFromStr("20150914143000");
-		self.file4.setModifiedFromStr("20150914143000");
+		self.file1.setModifiedUTCStr("20150914103000");
+		self.file2.setModifiedUTCStr("20150914103000");
+		self.file3.setModifiedUTCStr("20150914143000");
+		self.file4.setModifiedUTCStr("20150914143000");
 	def test_same(self):
 		self.assertTrue(self.file1 == self.file2);
 		self.assertTrue(self.file2 == self.file3);
@@ -143,11 +143,11 @@ class CompareFiles(unittest.TestCase):
 		self.file3 = deploy.File("D:\\mileslog");
 		self.file3_1 = deploy.File(self.file3.path);
 		self.file4 = deploy.File("D:\\sales");
-		self.file1.setModifiedFromStr("20150914103000");
-		self.file2.setModifiedFromStr("20150914110000");
-		self.file3.setModifiedFromStr("20150914113000");
-		self.file3_1.setModifiedFromStr("20150914114500");
-		self.file4.setModifiedFromStr("20150914120000");
+		self.file1.setModifiedUTCStr("20150914103000");
+		self.file2.setModifiedUTCStr("20150914110000");
+		self.file3.setModifiedUTCStr("20150914113000");
+		self.file3_1.setModifiedUTCStr("20150914114500");
+		self.file4.setModifiedUTCStr("20150914120000");
 
 	def test_allEmpty(self):
 		new, mod, unmod, delt = deploy.compareFiles([], []);

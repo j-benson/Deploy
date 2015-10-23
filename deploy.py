@@ -24,8 +24,11 @@
 """
 asciiExt = ['coffee', 'css', 'erb', 'haml', 'handlebars', 'hb', 'htm', 'html',
     'js', 'less', 'markdown', 'md', 'ms', 'mustache', 'php', 'rb', 'sass', 'scss',
-    'slim', 'txt', 'xhtml', 'xml']
+    'slim', 'txt', 'xhtml', 'xml'];
 remoteSep = "/";
+dLogName = "debug.txt";
+dLog = None;
+debug = False;
 STOR_AUTO = 0;
 STOR_BINARY = 1;
 STOR_ASCII = 2;
@@ -39,14 +42,17 @@ localPath = "D:\\test\\ftp";
 remotePath = "/";
 
 ### OPTIONS ###
+timezone = 1; # I know hardcoding the time zone is a great idea right.
 verbose = True;
 remoteTLS = False;
 remoteDelete = True;
+remoteIgnoreHidden = True; # TODO: Implement hidden.
+remoteIgnore = [".ftpquota", "cgi-bin"]; # TODO: Implement ignore.
 storMode = STOR_BINARY; # only binary currently works
-uploadMode = UPLOAD_OVERWRITE; # only overwrite currently works, modified has timezone issues.
+uploadMode = UPLOAD_MODIFIED;
 ##########################################################
 import os;
-from datetime import datetime;
+from datetime import datetime, timedelta;
 from ftplib import FTP, FTP_TLS, error_reply, error_temp, error_perm, error_proto, all_errors;
 if remoteTLS:
     import ssl;
@@ -71,17 +77,15 @@ def stor(dirpath, file):
         if (storMode == STOR_ASCII) or (storMode == STOR_AUTO and ext in asciiExt):
             # Store in ASCII mode
             if verbose: print("[asc] ", end="");
-            #with open(file.path, "rt") as fo:
             ftp.storlines("STOR %s" % storpath, open(file.path));
         else:
             # Store in binary mode
             if verbose: print("[bin] ", end="");
             ftp.storbinary("STOR %s" % storpath, open(file.path, "rb"));
-        # TODO: Add modified stamp to remote file.
         setModified(dirpath, file);
         if verbose: print("Uploaded: %s -> %s" % (file.path, storpath));
     except OSError as oserror:
-        print("Failed: %s\n  %s" % (file.path, oserror));
+        print("Failed Upload: %s\n  %s" % (file.path, oserror));
 def setModified(dirpath, file):
     """Attempts to set the modified time with MFMT."""
     ftp.voidcmd("MFMT %s %s" % (file.getModified(), remoteJoin(dirpath, file.name())));
@@ -151,11 +155,9 @@ def listLocal(path):
         if os.path.isdir(fullp):
             dirs.append(n);
         if os.path.isfile(fullp):
-            #stat = os.stat(fullp);
             f = File(fullp);
-            f.setModifiedFromEpoch(os.stat(fullp).st_mtime);
+            f.setModifiedTimestamp(os.stat(fullp).st_mtime);
             files.append(f);
-            print("LM: %s" % f.getModified());
     return (dirs, files);
 
 def listRemote(path = ""):
@@ -167,10 +169,8 @@ def listRemote(path = ""):
             dirs.append(name);
         if fact["type"] == "file":
             f = File(remoteJoin(path, name));
-            f.setModifiedFromStr(fact["modify"]);
-            print("RM: %s"%fact["modify"]);
+            f.setModifiedUTCStr(fact["modify"]);
             files.append(f);
-            #print("%s: %s" % (f.path, f.getModified()));
     return (dirs, files);
 # === End Traversal Functions ===
 
@@ -211,10 +211,14 @@ class File(object):
     # End Object Comparison
     def name(self):
         return os.path.basename(self.path);
-    def setModifiedFromStr(self, modified):
+    def setModifiedUTCStr(self, modified):
+        # Should be a string of the utc time.
         self.modified = datetime.strptime(modified, self.datetimeFormat);
-    def setModifiedFromEpoch(self, modified):
-        self.modified = datetime.utcfromtimestamp(modified);
+    def setModifiedTimestamp(self, modified):
+        # Timestamp (in windows at least) gives extra microseconds (us) that ftp doesn't have
+        usModified = datetime.utcfromtimestamp(modified)
+        usExtra = timedelta(microseconds=usModified.microsecond);
+        self.modified = usModified - usExtra;
     def getModified(self):
         return datetime.strftime(self.modified, self.datetimeFormat);
 # === End Structures ===
@@ -236,21 +240,29 @@ def compareFiles(localList, remoteList, checkDeleted = True):
     unmodified = [];
     deleted = [];
 
+    dprint("COMPARE LOCAL FILES WITH REMOTE FILES");
     for lfile in localList:
+        dprint("LOCAL: %s - %s" % (lfile.path, lfile.modified));
         existsInRemote = False;
         for rfile in remoteList:
             if lfile == rfile:
+                dprint("REMOTE: %s - %s" % (rfile.path, rfile.modified));
                 existsInRemote = True;
                 if uploadMode == UPLOAD_OVERWRITE or lfile > rfile:
+                    dprint("Upload Mode: %s | Modified: lfile > rfile" % uploadMode);
                     modified.append(lfile);
                 else:
+                    dprint("Not Modified: lfile <= rfile");
                     unmodified.append(lfile);
                 break;
         if not existsInRemote:
+            dprint("New local file");
             new.append(lfile);
+        dprint("--------------------------------------");
 
     # Check for deleted files
     if checkDeleted:
+        dprint("CHECK FOR DELETED FILES");
         for rfile in remoteList:
             existsInLocal = False;
             for lfile in localList:
@@ -258,7 +270,9 @@ def compareFiles(localList, remoteList, checkDeleted = True):
                     existsInLocal = True;
                     break;
             if not existsInLocal:
+                dprint("DELETED: %s" % rfile.path);
                 deleted.append(rfile);
+        dprint("--------------------------------------");
 
     return (new, modified, unmodified, deleted);
 
@@ -297,6 +311,15 @@ def compareDirs(localList, remoteList, checkDeleted = True):
 
     return (new, existing, deleted);
 
+def dprint(line, end="\r\n"):
+    global dLog;
+    if debug:
+        if dLog == None:
+            if os.path.exists(dLogName):
+                os.remove(dLogName);
+            dLog = open(dLogName, "w")
+        dLog.writelines(line + end);
+
 def main():
     if not os.path.isdir(localPath):
         print("Path Not Found: %s" % localPath);
@@ -322,6 +345,9 @@ def main():
                 ftp.quit();
             except: pass;
             ftp.close();
+        if not dLog == None and not dLog.closed:
+            dLog.flush();
+            dLog.close();
 
 if __name__ == "__main__":
     main();

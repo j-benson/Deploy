@@ -29,7 +29,6 @@ deleteIgnoreFiles = ["/.ftpquota"];
 deleteIgnoreDirs = ["/cgi-bin"];
 remoteSep = "/";
 dLogName = "debug.txt";
-dLog = None;
 STOR_AUTO = 0;
 STOR_BINARY = 1;
 STOR_ASCII = 2;
@@ -45,8 +44,8 @@ remotePath = "/";
 ### OPTIONS ###
 verbose = True;
 remoteTLS = False; # SSL/TLS doesn't work invalid certificate error
-remoteDelete = False;
-remoteIgnoreHidden = True; # TODO: Implement hidden.
+remoteDelete = True;
+remoteIgnoreHidden = False; # TODO: Implement hidden.
 storMode = STOR_BINARY; # only binary currently works
 uploadMode = UPLOAD_MODIFIED;
 debug = True;
@@ -58,6 +57,7 @@ if remoteTLS:
     import ssl;
 
 ftp = None;
+dLog = None;
 # === FTP Functions ===
 def connect():
     global ftp;
@@ -139,7 +139,8 @@ def traverse(localPath, remotePath = remoteSep):
     for d in newD:
         mkDir(remotePath, d);
     for d in newD + existingD:
-        traverse(os.path.join(localPath, d), remoteJoin(remotePath, d));
+        dname = d.name();
+        traverse(os.path.join(localPath, dname), remoteJoin(remotePath, dname));
     if remoteDelete:
         for d in deletedD:
             rmDir(remotePath, d, True);
@@ -336,14 +337,14 @@ def compareDirs(localList, remoteList, checkDeleted = True):
 
     return (new, existing, deleted);
 
-def dprint(line, end="\r\n"):
+def dprint(line, end="\n"):
     global dLog;
     if debug:
         if dLog == None:
             if os.path.exists(dLogName):
                 os.remove(dLogName);
             dLog = open(dLogName, "w")
-        dLog.writelines(line + end);
+        dLog.write(line + end);
 
 def main():
     if not os.path.isdir(localPath):

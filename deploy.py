@@ -25,6 +25,8 @@
 asciiExt = ['coffee', 'css', 'erb', 'haml', 'handlebars', 'hb', 'htm', 'html',
     'js', 'less', 'markdown', 'md', 'ms', 'mustache', 'php', 'rb', 'sass', 'scss',
     'slim', 'txt', 'xhtml', 'xml'];
+deleteIgnoreFiles = ["/.ftpquota"];
+deleteIgnoreDirs = ["/cgi-bin"];
 remoteSep = "/";
 dLogName = "debug.txt";
 dLog = None;
@@ -43,13 +45,12 @@ remotePath = "/";
 ### OPTIONS ###
 timezone = 1; # I know hardcoding the time zone is a great idea right.
 verbose = True;
-remoteTLS = False;
-remoteDelete = True;
+remoteTLS = False; # SSL/TLS doesn't work invalid certificate error
+remoteDelete = False;
 remoteIgnoreHidden = True; # TODO: Implement hidden.
-remoteIgnore = [".ftpquota", "cgi-bin"]; # TODO: Implement ignore.
 storMode = STOR_BINARY; # only binary currently works
 uploadMode = UPLOAD_MODIFIED;
-debug = False;
+debug = True;
 ##########################################################
 import os;
 from datetime import datetime, timedelta;
@@ -113,23 +114,23 @@ def rmDir(dirpath, name, recursive = False):
 def _rmDir(dirpath):
     """Delete directory with name from the current working directory.
     Only deletes empty directories."""
-    ftp.rmd(dirpath);
+    ftp.rmd(dirpath); # TODO: What if fails to delete?
 def _rmDirR(dirpath):
     """Remove the directory at dirpath and its contents (recursive)."""
     try:
         dirs, files = listRemote(dirpath);
         for f in files:
-            _rm(remoteJoin(dirpath, f.name()));
+            _rm(f.path);
         for d in dirs:
-            dp = remoteJoin(dirpath, d);
-            _rmDirR(dp);
-            _rmDir(dp);
+            _rmDirR(d.path);
+            _rmDir(d.path);
     except:
         raise error_temp("451 Can't remove directory");
 # === End FTP Functions ===
 
 # === Traversal Functions ===
 def traverse(localPath, remotePath = remoteSep):
+    dprint("TRAVERSING: local %s | remote %s"%(localPath, remotePath));
     localDirs, localFiles = listLocal(localPath);
     remoteDirs, remoteFiles = listRemote(remotePath);
     newF, modifiedF, unmodifiedF, deletedF = compareFiles(localFiles, remoteFiles, remoteDelete);
@@ -153,7 +154,7 @@ def listLocal(path):
     for n in names:
         fullp = os.path.join(path, n);
         if os.path.isdir(fullp):
-            dirs.append(n);
+            dirs.append(Directory(fullp));
         if os.path.isfile(fullp):
             f = File(fullp);
             f.setModifiedTimestamp(os.stat(fullp).st_mtime);
@@ -166,7 +167,7 @@ def listRemote(path = ""):
     response = ftp.mlsd(path);
     for name, fact in response:
         if fact["type"] == "dir":
-            dirs.append(name);
+            dirs.append(Directory(remoteJoin(path, name)));
         if fact["type"] == "file":
             f = File(remoteJoin(path, name));
             f.setModifiedUTCStr(fact["modify"]);
@@ -221,6 +222,23 @@ class File(object):
         self.modified = usModified - usExtra;
     def getModified(self):
         return datetime.strftime(self.modified, self.datetimeFormat);
+
+class Directory(object):
+    def __init__(self, path):
+        self.path = path;
+    def __str__(self):
+        return self.name();
+    def __eq__(self, other):
+        if isinstance(other, Directory):
+            return self.name() == other.name();
+        else:
+            return self.name() == str(other);
+    # def __len__(self):
+    #     len()
+    def name(self):
+        if isinstance(self.path, Directory):
+            raise Exception("Expected str found Directory");
+        return os.path.basename(self.path);
 # === End Structures ===
 
 def compareFiles(localList, remoteList, checkDeleted = True):
@@ -240,7 +258,7 @@ def compareFiles(localList, remoteList, checkDeleted = True):
     unmodified = [];
     deleted = [];
 
-    dprint("COMPARE LOCAL FILES WITH REMOTE FILES");
+    dprint("COMPARE FILES");
     for lfile in localList:
         dprint("LOCAL: %s - %s" % (lfile.path, lfile.modified));
         existsInRemote = False;
@@ -269,7 +287,7 @@ def compareFiles(localList, remoteList, checkDeleted = True):
                 if rfile == lfile:
                     existsInLocal = True;
                     break;
-            if not existsInLocal:
+            if not existsInLocal and not rfile.path in deleteIgnoreFiles:
                 dprint("DELETED: %s" % rfile.path);
                 deleted.append(rfile);
         dprint("--------------------------------------");
@@ -288,26 +306,34 @@ def compareDirs(localList, remoteList, checkDeleted = True):
     existing = [];
     deleted = [];
 
+    dprint("COMPARE DIRECTORIES");
     for ldir in localList:
+        dprint("LOCAL DIR: %s"%ldir.path);
         existsInRemote = False;
         for rdir in remoteList:
             if ldir == rdir:
+                dprint("REMOTE DIR: %s"%rdir.path);
+                dprint("Exists On Local and Remote");
                 existsInRemote = True;
                 existing.append(ldir)
                 break;
         if not existsInRemote:
+            dprint("New Local Directory");
             new.append(ldir);
 
-    # Check for deleted files
+    # Check for deleted directories
     if checkDeleted:
+        dprint("CHECK FOR DELETED DIRECTORIES");
         for rdir in remoteList:
             existsInLocal = False;
             for ldir in localList:
                 if rdir == ldir:
                     existsInLocal = True;
                     break;
-            if not existsInLocal:
+            if not existsInLocal and not rdir.path in deleteIgnoreDirs:
+                dprint("DELETED: %s" % rdir.path);
                 deleted.append(rdir);
+        dprint("--------------------------------------");
 
     return (new, existing, deleted);
 

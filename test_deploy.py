@@ -88,22 +88,22 @@ class FileObjComparison(unittest.TestCase):
 
 class CompareDirs(unittest.TestCase):
 	def setUp(self):
-		self.dir1 = "vw";
-		self.dir2 = "bmw";
-		self.dir3 = "ford";
-		self.dir4 = "renolt";
+		self.dir1 = deploy.Directory("/vw");
+		self.dir2 = deploy.Directory("/bmw");
+		self.dir3 = deploy.Directory("/ford");
+		self.dir4 = deploy.Directory("/renolt");
 	def test_allEmpty(self):
-		new, ex, delt = deploy.compareDirs([], []);
+		new, existing, deleted = deploy.compareDirs([], []);
 		self.assertEqual(len(new), 0);
-		self.assertEqual(len(ex), 0);
-		self.assertEqual(len(delt), 0);
+		self.assertEqual(len(existing), 0);
+		self.assertEqual(len(deleted), 0);
 	def test_allNew(self):
 		local = [self.dir1, self.dir2, self.dir3, self.dir4];
 		remote = [];
-		new, ex, delt = deploy.compareDirs(local, remote);
+		new, existing, deleted = deploy.compareDirs(local, remote);
 		self.assertEqual(len(new), 4);
-		self.assertEqual(len(ex), 0);
-		self.assertEqual(len(delt), 0);
+		self.assertEqual(len(existing), 0);
+		self.assertEqual(len(deleted), 0);
 
 		self.assertTrue("vw" in new);
 		self.assertTrue("bmw" in new);
@@ -113,28 +113,50 @@ class CompareDirs(unittest.TestCase):
 	def test_someNew(self):
 		local = [self.dir1, self.dir2, self.dir3, self.dir4];
 		remote = [self.dir1, self.dir2];
-		new, ex, delt = deploy.compareDirs(local, remote);
+		new, existing, deleted = deploy.compareDirs(local, remote);
 		self.assertEqual(len(new), 2);
-		self.assertEqual(len(ex), 2);
-		self.assertEqual(len(delt), 0);
+		self.assertEqual(len(existing), 2);
+		self.assertEqual(len(deleted), 0);
 
 		self.assertTrue("ford" in new);
 		self.assertTrue("renolt" in new);
-		self.assertTrue("vw" in ex);
-		self.assertTrue("bmw" in ex);
+		self.assertTrue("vw" in existing);
+		self.assertTrue("bmw" in existing);
 
 	def test_someDeleted(self):
 		local = [self.dir1, self.dir3];
 		remote = [self.dir1, self.dir2, self.dir3, self.dir4];
-		new, ex, delt = deploy.compareDirs(local, remote);
+		new, existing, deleted = deploy.compareDirs(local, remote);
 		self.assertEqual(len(new), 0);
-		self.assertEqual(len(ex), 2);
-		self.assertEqual(len(delt), 2);
+		self.assertEqual(len(existing), 2);
+		self.assertEqual(len(deleted), 2);
 
-		self.assertTrue("vw" in ex);
-		self.assertTrue("ford" in ex);
-		self.assertTrue("bmw" in delt);
-		self.assertTrue("renolt" in delt);
+		self.assertTrue("vw" in existing);
+		self.assertTrue("ford" in existing);
+		self.assertTrue("bmw" in deleted);
+		self.assertTrue("renolt" in deleted);
+
+	def test_ignoreDelete(self):
+		local = [self.dir1];
+		remote = [self.dir1, self.dir2, deploy.Directory("/cgi-bin")];
+		new, existing, deleted = deploy.compareDirs(local, remote, True);
+
+		self.assertEqual(len(new), 0);
+		self.assertEqual(len(existing), 1);
+		self.assertEqual(len(deleted), 1);
+
+		self.assertTrue("vw" in existing);
+		self.assertTrue("bmw" in deleted);
+
+		local = [self.dir1];
+		remote = [self.dir1, self.dir2, deploy.Directory("/cgi-bin")];
+		new, existing, deleted = deploy.compareDirs(local, remote, False);
+
+		self.assertEqual(len(new), 0);
+		self.assertEqual(len(existing), 1);
+		self.assertEqual(len(deleted), 0);
+
+		self.assertTrue("vw" in existing);
 
 class CompareFiles(unittest.TestCase):
 	def setUp(self):
@@ -211,6 +233,30 @@ class CompareFiles(unittest.TestCase):
 		self.assertTrue("polo" in unmod);
 		self.assertTrue("golf" in unmod);
 		self.assertTrue("sales" in delt);
+
+	def test_ignoreDelete(self):
+		# First Test with remoteDelete = True
+		local = [self.file1];
+		remote = [self.file1, self.file2, deploy.File("/.ftpquota")];
+		new, modified, unmodified, deleted = deploy.compareFiles(local, remote, True);
+
+		self.assertEqual(len(new), 0);
+		self.assertEqual(len(modified), 0);
+		self.assertEqual(len(unmodified), 1);
+		self.assertEqual(len(deleted), 1);
+		self.assertTrue("polo" in unmodified);
+		self.assertTrue("golf" in deleted);
+
+		# Second Test with remoteDelete = False
+		local = [self.file1];
+		remote = [self.file1, self.file2, deploy.File("/.ftpquota")];
+		new, modified, unmodified, deleted = deploy.compareFiles(local, remote, False);
+
+		self.assertEqual(len(new), 0);
+		self.assertEqual(len(modified), 0);
+		self.assertEqual(len(unmodified), 1);
+		self.assertEqual(len(deleted), 0);
+		self.assertTrue("polo" in unmodified);
 
 class RemoteJoin(unittest.TestCase):
 	def test_join(self):
